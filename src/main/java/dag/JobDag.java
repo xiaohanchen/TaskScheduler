@@ -17,7 +17,6 @@ public class JobDag implements DagGraph<String, TaskNode> {
 
     //not necessary as later may add father nodes to these initNodes, tedious to handle this list
     //Set<TaskNode> initNodes = new HashSet<>(1);
-
     HashMap<String, TaskNode> allNodes = new HashMap<>(6);
 
     @Override
@@ -45,7 +44,6 @@ public class JobDag implements DagGraph<String, TaskNode> {
         //use the Id to find the TaskNode in the execution
         if(allNodes.get(nodeKey) == null){
             TaskNode taskNode = new TaskNode(nodeKey);
-            initNodes.add(taskNode);
             allNodes.put(nodeKey, taskNode);
         }
     }
@@ -54,10 +52,8 @@ public class JobDag implements DagGraph<String, TaskNode> {
     public void addEdgeNode(String firstNode, String nextNode) {
         TaskNode fatherNode = getOrAdd(firstNode);
         TaskNode sonNode = getOrAdd(nextNode);
-
-        initNodes.add()
-
-
+        fatherNode.addSonNode(sonNode);
+        sonNode.addSonNode(sonNode);
     }
 
 

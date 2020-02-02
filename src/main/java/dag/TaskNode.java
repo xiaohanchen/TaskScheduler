@@ -1,20 +1,23 @@
 package dag;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
+ * this class DOESNT contain solid information of a NODE, it just explains relationship for better scalability,
+ * developer should fetch solid info of the node in runtime...
  * can find father nodes and son nodes via this one
  * @author xiaohan
  * @since 2020/1/23 11:29 AM
  */
 public class TaskNode {
 
-    String taskId;
+    private String taskId;
 
-    Set<TaskNode> fatherNodes = new HashSet<>();
+    private Set<TaskNode> fatherNodes = new HashSet<>();
 
-    Set<TaskNode> sonNodes = new HashSet<>();
+    private Set<TaskNode> sonNodes = new HashSet<>();
 
     public String getTaskId() {
         return taskId;
@@ -24,6 +27,20 @@ public class TaskNode {
         this.taskId = taskId;
         return this;
     }
+
+    void addSonNode(TaskNode son){
+        if (!sonNodes.contains(son)) {
+            sonNodes.add(son);
+            son.addFatherNode(this);
+        }
+    }
+
+    void addFatherNode(TaskNode father){
+        if (!fatherNodes.contains(father)) {
+            fatherNodes.add(father);
+        }
+    }
+
 
     public Set<TaskNode> getFatherNodes() {
         return fatherNodes;
@@ -45,5 +62,18 @@ public class TaskNode {
 
     public TaskNode(String taskId) {
         this.taskId = taskId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) { return true; }
+        if (o == null || getClass() != o.getClass()) { return false; }
+        TaskNode taskNode = (TaskNode)o;
+        return taskId.equals(taskNode.taskId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(taskId);
     }
 }
