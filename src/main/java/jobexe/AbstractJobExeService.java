@@ -6,15 +6,18 @@ import jobexe.result.JobResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static util.JobUtils.JOB_EXE_LOGGER;
+import static util.LogUtils.JOB_EXE_LOGGER;
 
 /**
  * @author xiaohan
  * @since 2020/2/2 10:48 AM
  */
 public abstract class AbstractJobExeService<R> implements JobExeService<R> {
-
     private Logger logger = LoggerFactory.getLogger(JOB_EXE_LOGGER);
+
+    public AbstractJobExeService(String jobId) {
+        this.jobId = jobId;
+    }
 
     private String jobId;
 

@@ -1,7 +1,7 @@
 package jobexe.result;
 
 /**
- * result of one job request
+ * result for one job request, is the wrapper of a single job result
  * @author xiaohan
  * @since 2020/2/2 9:46 AM
  */

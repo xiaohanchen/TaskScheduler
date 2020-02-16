@@ -13,6 +13,7 @@ import java.util.Set;
  */
 public class TaskNode {
 
+    //the task class simple name
     private String taskId;
 
     private Set<TaskNode> fatherNodes = new HashSet<>();
