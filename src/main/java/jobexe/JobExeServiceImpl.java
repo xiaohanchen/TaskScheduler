@@ -2,11 +2,15 @@ package jobexe;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import javax.annotation.Resource;
 
 import cache.CentralContainer;
+import common.Pair;
 import dag.JobDag;
 import dag.TaskNode;
 import executorengine.JobExecutorEngine;
@@ -40,15 +44,15 @@ public class JobExeServiceImpl extends AbstractJobExeService<String> {
     @Resource
     private CentralContainer container;
 
+    @Resource
+    private JobExecutorEngine threadPoolJobExecutorEngine;
+
     private JobDag jobDag;
 
-    private JobExecutorEngine engine;
 
-
-    public JobExeServiceImpl(String jobId, JobDag jobDag, JobExecutorEngine engine) {
+    public JobExeServiceImpl(String jobId, JobDag jobDag) {
         super(jobId);
         this.jobDag = jobDag;
-        this.engine = engine;
     }
 
     @Override
@@ -58,15 +62,16 @@ public class JobExeServiceImpl extends AbstractJobExeService<String> {
         TaskOutput lastTaskOut = null;
         while(!jobStatus.isFinish()){
 
-            TaskNode taskToRun = jobStatus.getNextWaitingTask();
+            //1.start exe 1 task
+            kickOffOneWaitingTask(jobStatus, jobContext);
 
-            SingleTaskService task = container.getTask(taskToRun.getTaskId());
-            TaskOutput taskOutput = task.runTask(jobContext);
-            lastTaskOut = taskOutput;
+            //2.check if any done task exist
+            // (with the principle that not blocking nodes in waiting list to be executed)
+            ArrayList<TaskNode> completedNodes = new ArrayList<>();
+            lastTaskOut = checkAnyDoneTask(jobStatus, lastTaskOut, completedNodes);
 
-            Set<TaskNode> sonNodes = taskToRun.getSonNodes();
-            jobStatus.addNodeToWaitingQueue(new ArrayList<>(sonNodes));
-
+            //3.add to complete list and prepare its son nodes
+            proceedTheirSonNodes(jobStatus, completedNodes);
         }
 
         jobContext.setEndTime(new Date());
@@ -75,5 +80,48 @@ public class JobExeServiceImpl extends AbstractJobExeService<String> {
         JobResult jobResult = new JobResult();
         jobResult.setLastJobOutput(lastTaskOut);
         return jobResult;
+    }
+
+    private void proceedTheirSonNodes(JobStatus jobStatus, ArrayList<TaskNode> completedNodes) {
+        //prepare its son nodes when it's done
+        for (TaskNode completedNode : completedNodes) {
+            Set<TaskNode> sonNodes = completedNode.getSonNodes();
+            jobStatus.addNodeToWaitingQueue(new ArrayList<>(sonNodes));
+        }
+    }
+
+    private TaskOutput checkAnyDoneTask(JobStatus jobStatus, TaskOutput lastTaskOut, ArrayList<TaskNode> completedNodes) {
+        Iterator<Pair<TaskNode, Future<TaskOutput>>> iterator = jobStatus.getProcessingTasks().iterator();
+        while (iterator.hasNext()){
+            Pair<TaskNode, Future<TaskOutput>> pair = iterator.next();
+            boolean done = pair.getRight().isDone();
+            if(done){
+                try {
+                    //todo doubting.....
+                    lastTaskOut = pair.getRight().get();
+                    completedNodes.add(pair.getLeft());
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return lastTaskOut;
+    }
+
+    private void kickOffOneWaitingTask(JobStatus jobStatus, JobContext jobContext) {
+        //get task instance
+        TaskNode taskToRun = jobStatus.getNextWaitingTask();
+        SingleTaskService task = container.getTask(taskToRun.getTaskId());
+
+        //delegate to execute engine
+        Future<TaskOutput> executeFuture = threadPoolJobExecutorEngine.execute(() -> {
+            TaskOutput taskOutput = task.runTask(jobContext);
+            return taskOutput;
+        });
+
+        //add to the processing list
+        jobStatus.addProcessingNode(taskToRun, executeFuture);
     }
 }
